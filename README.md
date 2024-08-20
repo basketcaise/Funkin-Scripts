@@ -1,5 +1,5 @@
 # Funkin' Scripts
-Scripts are intended to be used with the latest Psych Engine release unless stated otherwise.
+Scripts are intended to be used with the [latest stable Psych Engine release](https://github.com/ShadowMario/FNF-PsychEngine/releases/latest) unless stated otherwise.
 
 ## Single Script Descriptions
 
