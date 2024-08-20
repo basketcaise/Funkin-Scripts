@@ -1,0 +1,8 @@
+{
+	"name": "shrimpleHUD 0.6.3",
+	"description": "Applies shrimpleHUD across all songs (including base game and mods)\nMay conflict with mods/scripts that edit the HUD\nOnly supported for v0.6.3",
+	"restart": false,
+	"runsGlobally": true,
+	"color": [128, 128, 128],
+	"discordRPC": "863222024192262205"
+}

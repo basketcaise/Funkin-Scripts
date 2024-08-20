@@ -1,0 +1,12 @@
+Bops the camera lololol!!!
+
+Value 1: Camera Bop Multiplier
+Set either cameras (camGame or camHUD) bop
+multiplier by using a comma to separate the two values
+eg. '0.015, 0.03'
+
+Value 2: Camera Bop Type
+1 makes it bop every beat
+2 makes it bop every OTHER beat
+3 makes it bop AND turn every beat
+Leave blank to disable the event

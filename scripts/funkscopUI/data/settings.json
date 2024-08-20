@@ -1,0 +1,9 @@
+[
+	{
+		"save": "aspect",
+		"name": "4:3 Aspect Ratio",
+		"type": "bool",
+		"description": "Resizes the game window to have a 4:3 aspect ratio\nONLY WORKS IN WINDOWED MODE!!!",
+		"value": true
+	}
+]

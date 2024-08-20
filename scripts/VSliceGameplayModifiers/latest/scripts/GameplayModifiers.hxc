@@ -1,0 +1,107 @@
+import funkin.modding.module.Module;
+import funkin.modding.events.ScriptEvent;
+
+import Std;
+import flixel.FlxG;
+import flixel.util.FlxTimer;
+import flixel.util.FlxSave;
+
+import funkin.ui.options.OptionsState;
+import funkin.ui.options.PreferencesMenu;
+import funkin.util.Constants;
+import funkin.play.PlayState;
+
+class GameplayModifiers extends Module {
+	var save = new FlxSave();
+		
+	public function new() {
+		save.bind('GameplayModifiers', 'Basketcaise');
+		super('gameplay-modifiers');
+	}
+	
+	// option injector
+	function onCreate(event) {
+		if (save.data.restartModifiers == null) save.data.restartModifiers = false;
+		if (save.data.killOnMiss == null) save.data.killOnMiss = false;
+		if (save.data.killOnGhostTap == null) save.data.killOnGhostTap = false;
+		if (save.data.perfectMode == null) save.data.perfectMode = false;
+			
+		save.flush();
+		super.onCreate(event);
+    }
+	
+	function onStateChangeEnd(event) {
+		if (Std.isOfType(event.targetState, OptionsState)) {
+			var options = event.targetState.pages.get('options');
+			var state = event.targetState;
+			
+			// modifier menu itself
+			var modItem = options.items.createItem(0, options.items.members[options.items.length - 1].y + 200, 'Modifiers', 'bold', function() { options.onSwitch.dispatch('modifiers'); });
+			modItem.x = (FlxG.width - modItem.width) / 2;
+			options.items.add(modItem);
+			
+			var modMenu = event.targetState.addPage('modifiers', new PreferencesMenu());
+			modMenu.onExit.add(function() { state.switchPage('options'); });
+            for (i in modMenu.items) { i.destroy(); }
+			for (i in modMenu.preferenceItems) { i.destroy(); }
+			
+			modMenu.items.clear();
+			modMenu.preferenceItems.clear();
+			
+			// modifier menu items
+			modMenu.createPrefItemCheckbox("Restart instead of Kill", "All Instakill modifers restart the song instead of killing you", function(value) {
+                save.data.restartModifiers = value;
+            }, save.data.restartModifiers);
+			
+			modMenu.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(value) {
+                save.data.killOnMiss = value;
+            }, save.data.killOnMiss);
+			
+			modMenu.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(value) {
+                save.data.killOnGhostTap = value;
+            }, save.data.killOnGhostTap);
+			
+			modMenu.createPrefItemCheckbox("Perfect Mode", "Getting anything other than 'Sick!!' as your judgement kills you", function(value) {
+                save.data.perfectMode = value;
+            }, save.data.perfectMode);
+			
+			save.flush();
+		}
+		
+		super.onStateChangeEnd(event);
+	}
+	
+	// judgement handler
+	function onNoteHit(event:HitNoteScriptEvent) {
+		if (save.data.perfectMode && event.note.noteData.getMustHitNote() && event.judgement != "sick") {
+			if (save.data.restartModifiers)
+				PlayState.instance.needsReset = true;
+			else
+				PlayState.instance.health = Constants.HEALTH_MIN;
+		}
+		
+		super.onNoteHit(event);
+	}
+	
+	function onNoteMiss(event:HitNoteScriptEvent) {
+		if (save.data.perfectMode || save.data.killOnMiss) {
+			if (save.data.restartModifiers)
+				PlayState.instance.needsReset = true;
+			else
+				PlayState.instance.health = Constants.HEALTH_MIN;
+		}
+		
+		super.onNoteGhostMiss(event);
+	}
+	
+	function onNoteGhostMiss(event:HitNoteScriptEvent) {
+		if (save.data.perfectMode || save.data.killOnGhostTap) {
+			if (save.data.restartModifiers)
+				PlayState.instance.needsReset = true;
+			else
+				PlayState.instance.health = Constants.HEALTH_MIN;
+		}
+		
+		super.onNoteGhostMiss(event);
+	}
+}

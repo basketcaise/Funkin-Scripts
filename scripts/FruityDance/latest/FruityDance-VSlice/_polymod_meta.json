@@ -1,0 +1,8 @@
+{
+    "title": "Fruity Dance (V-Slice)",
+    "description": "Recreation of the Fruity Dance plugin from FL Studio\n\nUse the mouse to drag the dancer around!\nPress space to alternate between different dances!",
+    "contributors": [{"name": "Basketcaise"}],
+    "api_version": "0.1.0",
+    "mod_version": "1.0.0",
+    "license": "Apache-2.0"
+}
