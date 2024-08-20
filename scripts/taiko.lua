@@ -36,14 +36,16 @@ function onCreatePost()
 end
 
 function onSpawnNote(i, n, t, s)
-	setPropertyFromGroup('notes', i, 'angle', 270)
-	
-	if s then
-		if getPropertyFromGroup('notes', i, 'animation.curAnim.name'):match('holdend') ~= 'holdend' then
-			setPropertyFromGroup('unspawnNotes', i, 'offset.x', 105)
-			setPropertyFromGroup('unspawnNotes', i, 'offset.y', -185)
-		else
-			setPropertyFromGroup('unspawnNotes', i, 'offset.y', -20)
+	if enableTaiko then
+		setPropertyFromGroup('notes', i, 'angle', 270)
+		
+		if s then
+			if getPropertyFromGroup('notes', i, 'animation.curAnim.name'):match('holdend') ~= 'holdend' then
+				setPropertyFromGroup('unspawnNotes', i, 'offset.x', 105)
+				setPropertyFromGroup('unspawnNotes', i, 'offset.y', -185)
+			else
+				setPropertyFromGroup('unspawnNotes', i, 'offset.y', -20)
+			end
 		end
 	end
 end
