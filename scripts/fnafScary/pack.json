@@ -1,0 +1,7 @@
+{
+	"name": "Jumpscare on Death",
+	"description": "don't die...",
+	"restart": false,
+	"runsGlobally": true,
+	"color": [128, 128, 128]
+}
