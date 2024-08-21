@@ -51,7 +51,7 @@ function onSpawnNote(i, n, t, s)
 end
 
 function onDestroy()
-	if enableTaiko then
+	if enableTaiko and prevNoteSkin ~= '' then
 		setPropertyFromClass('backend.ClientPrefs', 'data.noteSkin', prevNoteSkin)
 	end
 end
