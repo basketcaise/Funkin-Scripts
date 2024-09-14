@@ -77,7 +77,7 @@ class GameplayModifiers extends Module {
 			if (save.data.restartModifiers)
 				PlayState.instance.needsReset = true;
 			else
-				PlayState.instance.health = Constants.HEALTH_MIN;
+				PlayState.instance.health = Constants.HEALTH_MIN - Constants.HEALTH_MIN;
 		}
 		
 		super.onNoteHit(event);
@@ -88,7 +88,7 @@ class GameplayModifiers extends Module {
 			if (save.data.restartModifiers)
 				PlayState.instance.needsReset = true;
 			else
-				PlayState.instance.health = Constants.HEALTH_MIN;
+				PlayState.instance.health = Constants.HEALTH_MIN - Constants.HEALTH_MIN;
 		}
 		
 		super.onNoteGhostMiss(event);
@@ -99,7 +99,7 @@ class GameplayModifiers extends Module {
 			if (save.data.restartModifiers)
 				PlayState.instance.needsReset = true;
 			else
-				PlayState.instance.health = Constants.HEALTH_MIN;
+				PlayState.instance.health = Constants.HEALTH_MIN - Constants.HEALTH_MIN;
 		}
 		
 		super.onNoteGhostMiss(event);
