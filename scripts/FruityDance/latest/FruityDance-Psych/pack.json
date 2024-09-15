@@ -1,6 +1,6 @@
 {
 	"name": "Fruity Dance (Psych)",
-	"description": "Recreation of the Fruity Dance plugin from FL Studio\n\nUse the mouse to drag the dancer around!\nPress space to alternate between different dances!",
+	"description": "Recreation of the Fruity Dance plugin from FL Studio\n\nUse the mouse to drag the dancer around!\nPress space to alternate between different dances!\nPress backtick to enable Freestyle!",
 	"restart": false,
 	"runsGlobally": true,
 	"color": [128, 128, 128]
