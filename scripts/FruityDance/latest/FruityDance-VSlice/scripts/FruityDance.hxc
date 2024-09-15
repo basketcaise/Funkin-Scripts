@@ -1,13 +1,9 @@
-import funkin.modding.module.Module;
-import funkin.modding.events.ScriptEvent;
-import funkin.ui.transition.StickerSubState;
-import funkin.play.PlayState;
-import funkin.Paths;
-
 import Std;
+import Math;
+import StringTools;
+
 import flixel.FlxG;
 import flixel.FlxSprite;
-import flixel.FlxCamera;
 import flixel.tweens.FlxTween;
 
 import flixel.util.FlxSave;
@@ -16,8 +12,18 @@ import flixel.util.FlxTimer;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 
+import flixel.math.FlxMath;
 import flixel.math.FlxBasePoint;
 import flixel.graphics.frames.FlxTileFrames;
+
+import funkin.modding.module.Module;
+import funkin.modding.events.ScriptEvent;
+
+import funkin.ui.transition.StickerSubState;
+import funkin.play.PlayState;
+
+import funkin.Conductor;
+import funkin.Paths;
 
 class FruityDance extends Module {
 	var fruitySave:FlxSave;
@@ -30,26 +36,30 @@ class FruityDance extends Module {
 		if (fruitySave.data.curDance == null) {
 			fruitySave.data.dancerX = 0;
 			fruitySave.data.dancerY = 0;
+			
 			fruitySave.data.curDance = 0;
+			fruitySave.data.freestyle = false;
 			
 			fruitySave.flush();
 		}
 	}
 	
 	var fruityDancer:FlxSprite;
-	var fruityDances:Array<String> = ['waiting', 'stepping', 'jumping', 'zombie', 'waving', 'hula', 'windmill', 'zitabata', 'dervish'];
+	var fruityDances:Array<String> = ['Waiting', 'Stepping', 'Jumping', 'Zombie', 'Waving', 'Hula', 'Windmill', 'Zitabata', 'Dervish'];
 	var holdingDancer:Bool = false;
 	
 	var fruityTimer:FlxTimer;
 	var fruityText:FlxText;
 	var fruityStep:Int; // no idea how to use CountdownStep so using this for now!
 	
+	var rgbColor:Array<Int> = [0, 0, 0];
+	
 	function onSongLoaded(event) {
 		super.onSongLoaded(event);
 		var state = PlayState.instance;
 		
 		fruityDancer = new FlxSprite(fruitySave.data.dancerX, fruitySave.data.dancerY);
-		var fruityGraphic = FlxG.bitmap.add(Paths.image('fruityDancer'), false);
+		var fruityGraphic = FlxG.bitmap.add(Paths.image('fl-chan'), false);
 		fruityDancer.frames = FlxTileFrames.fromGraphic(fruityGraphic, FlxBasePoint.get(220, 256));
 		fruityDancer.cameras = [state.camHUD];
 		state.add(fruityDancer);
@@ -58,8 +68,8 @@ class FruityDance extends Module {
 		
 		fruityText = new FlxText(fruityDancer.getGraphicMidpoint().x - 640, fruityDancer.getGraphicMidpoint().y - 125, FlxG.width, 'Fruity Dance!');
 		fruityText.setFormat(Paths.font('vcr.ttf'), 20, 0xFFFFFFFF, 'center', FlxTextBorderStyle.OUTLINE, 0xFF000000);
-		fruityText.borderSize = 1.25;
 		fruityText.cameras = [state.camHUD];
+		fruityText.borderSize = 1.25;
 		fruityText.alpha = 0;
 		state.add(fruityText);
 		
@@ -71,6 +81,7 @@ class FruityDance extends Module {
 		}
 		
 		FlxG.mouse.visible = true;
+		fruityStep = 0;
 	}
 
 	function onUpdate(elapsed:Float) {
@@ -97,50 +108,75 @@ class FruityDance extends Module {
 				fruitySave.flush();
 			}
 			
+			if (FlxG.keys.justPressed.SPACE && !fruitySave.data.freestyle) {
+				fruitySave.data.curDance = FlxMath.wrap(fruitySave.data.curDance + 1, 0, fruityDances.length - 1);
+				fruitySave.flush();
+				
+				fruityTimer.cancel();
+				FlxTween.completeTweensOf(fruityText);
+				FlxTween.completeTweensOf(fruityText.offset);
+				FlxTween.globalManager.update(0);
+				
+				fruityText.text = fruityDances[fruitySave.data.curDance];
+				fruityText.alpha = 1;
+				
+				fruityTimer.start(1, () -> {
+					FlxTween.tween(fruityText, {alpha: 0}, 1, {onComplete: () -> { fruityText.text = 'Fruity Dance!'; } });
+					FlxTween.tween(fruityText.offset, {y: 25}, 1, {onComplete: () -> { fruityText.offset.y = 0; } });
+				});
+			}
+			
+			if (FlxG.keys.justPressed.GRAVEACCENT) {
+				fruitySave.data.freestyle = !fruitySave.data.freestyle;
+				fruitySave.flush();
+				
+				fruityTimer.cancel();
+				FlxTween.completeTweensOf(fruityText);
+				FlxTween.completeTweensOf(fruityText.offset);
+				FlxTween.globalManager.update(0);
+				
+				fruityText.text = fruitySave.data.freestyle ? 'Freestyle!' : fruityDances[fruitySave.data.curDance];
+				fruityText.alpha = 1;
+				
+				if (!fruitySave.data.freestyle) {
+					fruityText.borderColor = 0xFF000000;
+					fruityText.angle = 0;
+				}
+				
+				fruityTimer.start(1, () -> {
+					FlxTween.tween(fruityText, {alpha: 0}, 1, {onComplete: () -> { fruityText.text = 'Fruity Dance!'; } });
+					FlxTween.tween(fruityText.offset, {y: 25}, 1, {onComplete: () -> { fruityText.offset.y = 0; } });
+				});
+			}
+			
+			if (fruitySave.data.freestyle && fruityText.text == 'Freestyle!') {
+				rgbColor[0] = FlxMath.fastSin(Conductor.instance.songPosition * 0.0075) * 127 + 128;
+				rgbColor[1] = FlxMath.fastSin((Conductor.instance.songPosition * 0.0075) + 2 * Math.PI / 3) * 127 + 128;
+				rgbColor[2] = FlxMath.fastSin((Conductor.instance.songPosition * 0.0075) + 4 * Math.PI / 3) * 127 + 128;
+				
+				fruityText.borderColor = rgbToHex(rgbColor[0], rgbColor[1], rgbColor[2]);
+				fruityText.angle = FlxMath.fastSin(Conductor.instance.songPosition * 0.0075) * 4;
+			}
+			
 			if (state.needsReset) {
 				fruityDancer.destroy();
 				fruityText.destroy();
 			}
 		}
-		
-		if (FlxG.keys.justPressed.SPACE) {
-			if (fruitySave.data.curDance >= fruityDances.length - 1)
-				fruitySave.data.curDance = 0;
-			else
-				fruitySave.data.curDance += 1;
-			
-			fruitySave.flush();
-			
-			fruityTimer.cancel();
-			FlxTween.completeTweensOf(fruityText);
-			FlxTween.completeTweensOf(fruityText.offset);
-			FlxTween.globalManager.update(0);
-			
-			fruityText.text = fruityDances[fruitySave.data.curDance];
-			fruityText.alpha = 1;
-			
-			fruityTimer.start(1, () -> {
-				FlxTween.tween(fruityText, {alpha: 0}, 1, {onComplete: function() { fruityText.text = 'Fruity Dance!'; } });
-				FlxTween.tween(fruityText.offset, {y: 25}, 1, {onComplete: function() { fruityText.offset.y = 0; } });
-			});
-		}
-	}
-	
-	function onCountdownStart(event) {
-		super.onCountdownStart(event);
-		fruityStep = 4;
 	}
 	
 	function onCountdownStep(event) {
 		super.onCountdownStep(event);
-		fruityStep -= 1;
+		var randDance:Int = FlxG.random.int(0, fruityDances.length - 1);
 		
 		if (!holdingDancer) {
-			if (fruityStep % 2 == 1)
-				fruityDancer.animation.play(fruityDances[fruitySave.data.curDance] + 'Left', false);
-			else if (fruityStep % 2 == 0)
-				fruityDancer.animation.play(fruityDances[fruitySave.data.curDance] + 'Right', false);
+			if (fruityStep % 2 == 0)
+				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Left', false);
+			else if (fruityStep % 2 == 1)
+				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Right', false);
 		}
+		
+		fruityStep += 1;
 	}
 
 	function onBeatHit(event:SongTimeScriptEvent) {
@@ -148,11 +184,13 @@ class FruityDance extends Module {
 		var state = PlayState.instance;
 		if (state == null) return;
 		
+		var randDance:Int = FlxG.random.int(0, fruityDances.length - 1);
+		
 		if (!holdingDancer) {
-			if (event.beat % 2 == 1)
-				fruityDancer.animation.play(fruityDances[fruitySave.data.curDance] + 'Left', false);
-			else if (event.beat % 2 == 0)
-				fruityDancer.animation.play(fruityDances[fruitySave.data.curDance] + 'Right', false);
+			if (event.beat % 2 == 0)
+				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Left', false);
+			else if (event.beat % 2 == 1)
+				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Right', false);
 		}
 	}
 	
@@ -161,11 +199,19 @@ class FruityDance extends Module {
 		var state = PlayState.instance;
 		if (state == null) return;
 		
-		if (Std.isOfType(event.targetState, StickerSubState)) { FlxG.mouse.visible = false; }
+		if (Std.isOfType(event.targetState, StickerSubState)) FlxG.mouse.visible = false;
 	}
 
 	function onSongEnd(event) {
 		super.onSongEnd(event);
 		FlxG.mouse.visible = false;
+	}
+	
+	function rgbToHex(r, g, b) {
+		var rHex = StringTools.hex(r, 2);
+		var gHex = StringTools.hex(g, 2);
+		var bHex = StringTools.hex(b, 2);
+		
+		return Std.parseInt('0xFF' + rHex + gHex + bHex);
 	}
 }
