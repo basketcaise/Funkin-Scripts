@@ -1,0 +1,7 @@
+{
+	"name": "shrimpleHUD",
+	"description": "we gettin shrimpy on a friday night yea\n\nWill most likely conflict with other mods/scripts that modify the UI.\n\nOnly supported for v0.7.3 and v1.0.",
+	"restart": false,
+	"runsGlobally": true,
+	"color": [128, 128, 128]
+}

@@ -9,25 +9,27 @@ I'd appreciate it!
 Installation instructions:
 Just place the script corresponding to your version in either the scripts folder or the data folder of the song you want to use the HUD in.
 
-If you don't have a specific mod you want to use the HUD in or you want to use the HUD in all mods, then just place the one of the global folders corresponding to your version inside your Psych Engine mods folder.
+If you don't have a specific mod you want to use the HUD in or you want to use the HUD in all mods, then just place the shrimpleHUD folder inside your Psych Engine mods folder.
 
-Remember, this script only supports Psych Engine versions 0.6.3 and 0.7.2+. Other versions may not display properly or not work at all!
+Remember, this script only supports Psych Engine versions 0.7.3 and 1.0. Other versions may not display properly or not work at all!
 
 ---
 
-Here's an example of how to use the global variables to disable shrimpleHUD on specific songs or mods:
+Want to add shrimpleHUD compatibility to your mod? Refer to these variables/functions!
 
-For shrimpleHUD on Psych v0.7.2+:
-function onCreate()
-	setVar('sHUDEnabled', false)
-end
+shrimple: Global variable that toggles the script altogether. Set with setVar() on the onCreate() callback to use.
+lockShrimple: Global variable that toggles the players ability to switch HUD styles. Set with setVar() to use.
+shrimpleStyle(HUD:Int, ?print:Bool = false): Global function that sets the current HUD style. First argument is an integer that correlates to hudMap, second optional argument is a bool to display a HUD switch print.
 
-- This method works anywhere regardless of shrimpleHUD's file path
+Here's an HScript example of these being used in a song.
 
-For shrimpleHUD on Psych v0.6.3:
-function onCreate()
-	setGlobalFromScript('mods/[Global]-sHUD-0.6.3/scripts/sHUD-0.6.3.lua', 'disableShrimpHUD', true)
-end
+function onCreatePost() {
+    if (getVar('shrimple')) { // checks if shrimpleHUD is present
+        setVar('lockShrimple', true); // prevents the player from switching styles
+        shrimpStyle(3); // sets the style to the 3rd hud in the script, which is sKade
+    }
+}
 
-- This method only works if you have the global mod installed and the folder is named '[Global]-sHUD-0.6.3'
-- However, you can edit the file path to wherever the script is located to make it work :))
+function onBeatHit() {
+    if (getVar('shrimple') && curBeat == 32) shrimpStyle(1); // checks if shrimpleHUD is present and if the current beat is 32, then sets the style to the 1st hud in the script, which is sVanilla
+}
