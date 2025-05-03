@@ -1,16 +1,22 @@
 import Std;
+import Math;
 
 import flixel.FlxG;
 import flixel.util.FlxSave;
+import flixel.text.FlxText;
 
 import openfl.text.TextField;
 import openfl.text.TextFormat;
 
+import funkin.Conductor;
 import funkin.Preferences;
+
 import funkin.ui.options.OptionsState;
 import funkin.ui.options.PreferencesMenu;
+
 import funkin.modding.module.Module;
 import funkin.modding.events.ScriptEvent;
+
 import funkin.util.Constants;
 import funkin.play.PlayState;
 
@@ -55,67 +61,75 @@ class GameplayModifiers extends Module {
 	}
 	
 	function onStateChangeEnd(event) {
-		super.onStateChangeEnd(event);
 		if (Std.isOfType(event.targetState, OptionsState)) {
-			var options = event.targetState.pages.get('options');
 			var state = event.targetState;
+			var options = state.optionsCodex.pages.get('options');
 			
 			// modifier menu itself
-			var modItem = options.items.createItem(0, options.items.members[options.items.length - 1].y + 200, 'Modifiers', 'bold', function() { options.onSwitch.dispatch('modifiers'); });
-			modItem.x = (FlxG.width - modItem.width) / 2;
-			options.items.add(modItem);
+			var modifiers:PreferencesMenu = state.optionsCodex.addPage('Modifiers', new PreferencesMenu());
 			
-			var modMenu = event.targetState.addPage('modifiers', new PreferencesMenu());
-			modMenu.onExit.add(function() { state.switchPage('options'); });
-            for (i in modMenu.items) { i.destroy(); }
-			for (i in modMenu.preferenceItems) { i.destroy(); }
+			for (i in modifiers.items) i.destroy();
+			for (i in modifiers.preferenceItems) i.destroy();
 			
-			modMenu.items.clear();
-			modMenu.preferenceItems.clear();
+			modifiers.items.clear();
+			modifiers.preferenceItems.clear();
+			modifiers.preferenceDesc = [];
+			
+			modifiers.onExit.add(function() state.optionsCodex.switchPage('options'));
+			options.createItem('MODIFIERS', function() options.codex.switchPage('Modifiers'));
+			options.items.members[options.items.length - 1].y = 0;
 			
 			// STATES
-			modMenu.items.createItem(0, (120 * modMenu.items.length) + 30, '/ State Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
-			modMenu.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(value:Bool) {
+			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ State Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+			modifiers.preferenceDesc.push('Modifiers that affect PlayState itself');
+			
+			modifiers.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(value:Bool) {
                 save.data.botplay = value;
             }, save.data.botplay);
 			
 			/* can't seem to get this to work properly
-			modMenu.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(value:Bool) {
+			modifiers.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(value:Bool) {
                 save.data.minimal = value;
             }, save.data.minimal);
 			*/
 			
 			// NUMERICALS
-			modMenu.items.createItem(0, (120 * modMenu.items.length) + 30, '/ Numerical Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
-			modMenu.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(value:Float) {
+			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Numerical Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+			modifiers.preferenceDesc.push('Modifiers that affect numerical values in a song');
+			
+			modifiers.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(value:Float) {
 				save.data.scrollSpeed = value;
 			}, null, save.data.scrollSpeed, 0, 10, 0.05, 2);
 			
-			modMenu.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(value:Float) {
+			modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels, currently broken as of 0.6.4', function(value:Float) {
 				save.data.playbackRate = value;
 			}, null, save.data.playbackRate, 0.05, 10, 0.05, 2);
 			
 			// JUDGEMENTALS
-			modMenu.items.createItem(0, (120 * modMenu.items.length) + 30, '/ Judgement Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
-			modMenu.createPrefItemCheckbox("Restart instead of Kill", "All Instakill modifers restart the song instead of killing you", function(value) {
+			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Judgement Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+			modifiers.preferenceDesc.push('Modifiers that affect gameplay based on your note judgements');
+			
+			modifiers.createPrefItemCheckbox("Restart instead of Kill", "All Instakill modifers restart the song instead of killing you", function(value) {
                 save.data.restartModifiers = value;
             }, save.data.restartModifiers);
 			
-			modMenu.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(value:Bool) {
+			modifiers.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(value:Bool) {
                 save.data.killOnMiss = value;
             }, save.data.killOnMiss);
 			
-			modMenu.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(value:Bool) {
+			modifiers.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(value:Bool) {
                 save.data.killOnGhostTap = value;
             }, save.data.killOnGhostTap);
 			
-			modMenu.createPrefItemCheckbox("Perfect Mode", "Getting anything other than 'Sick!!' as your judgement kills you", function(value:Bool) {
+			modifiers.createPrefItemCheckbox("Perfect Mode", "Getting anything other than 'Sick!!' as your judgement kills you", function(value:Bool) {
                 save.data.perfectMode = value;
             }, save.data.perfectMode);
 			
 			// DEBUG
-			modMenu.items.createItem(0, (120 * modMenu.items.length) + 30, '/ Debug /', 'bold', function() { trace('HAWK TUAH'); });
-			modMenu.createPrefItemCheckbox("Debug Info", "Toggles debug information regarding the modifiers, Debug Display in Preferences needs to be enabled as well", function(value:Bool) {
+			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Debug /', 'bold', function() { trace('HAWK TUAH'); });
+			modifiers.preferenceDesc.push('debug lol');
+			
+			modifiers.createPrefItemCheckbox("Debug Info", "Toggles debug information regarding the modifiers, Debug Display in Preferences needs to be enabled as well", function(value:Bool) {
 				if (Preferences.debugDisplay && value)
 					FlxG.stage.addChild(debugTxt);
 				else
