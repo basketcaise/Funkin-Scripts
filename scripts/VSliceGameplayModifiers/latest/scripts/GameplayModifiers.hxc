@@ -2,7 +2,7 @@ import Std;
 import Math;
 
 import flixel.FlxG;
-import flixel.util.FlxSave;
+import funkin.save.Save;
 import flixel.text.FlxText;
 
 import openfl.text.TextField;
@@ -21,25 +21,35 @@ import funkin.util.Constants;
 import funkin.play.PlayState;
 
 class GameplayModifiers extends Module {
-	var save = new FlxSave();
+	var save:Save;
+	var modOptions:Map;
 	var debugTxt:TextField;
 		
 	public function new() {
 		super('gameplay-modifiers');
-		save.bind('GameplayModifiers', 'Basketcaise');
+		save = Save.instance;
 		
-		if (save.data.botplay == null) save.data.botplay = false;
-		if (save.data.minimal == null) save.data.minimal = false;
+		if (save.modOptions.get('GameplayModifiers') == null) {
+			var default:Map<String, Dynamic> = [
+				'botplay' => false,
+				'minimal' => false,
+				
+				'scrollSpeed' => 0.0,
+				'playbackRate' => 1.0,
+				
+				'restartModifiers' => false,
+				'killOnMiss' => false,
+				'killOnGhostTap' => false,
+				'perfectMode' => false,
+				
+				'debug' => false
+			];
+			
+			save.modOptions.set('GameplayModifiers', default);
+			save.flush();
+		}
 		
-		if (save.data.scrollSpeed == null) save.data.scrollSpeed = 0.0;
-		if (save.data.playbackRate == null) save.data.playbackRate = 1.0;
-		
-		if (save.data.restartModifiers == null) save.data.restartModifiers = false;
-		if (save.data.killOnMiss == null) save.data.killOnMiss = false;
-		if (save.data.killOnGhostTap == null) save.data.killOnGhostTap = false;
-		if (save.data.perfectMode == null) save.data.perfectMode = false;
-		
-		if (save.data.debug == null) save.data.debug = false;
+		modOptions = save.modOptions.get('GameplayModifiers');
 		
 		debugTxt = new TextField();
 		debugTxt.x = 10;
@@ -51,13 +61,11 @@ class GameplayModifiers extends Module {
 		
 		debugTxt.selectable = false;
 		debugTxt.mouseEnabled = false;
-		
-		save.flush();
 	}
 	
 	function onCreate(event) {
 		super.onCreate(event);
-		if (Preferences.debugDisplay && save.data.debug) FlxG.stage.addChild(debugTxt);
+		if (Preferences.debugDisplay && modOptions.get('debug')) FlxG.stage.addChild(debugTxt);
 	}
 	
 	function onStateChangeEnd(event) {
@@ -84,13 +92,13 @@ class GameplayModifiers extends Module {
 			modifiers.preferenceDesc.push('Modifiers that affect PlayState itself');
 			
 			modifiers.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(value:Bool) {
-                save.data.botplay = value;
-            }, save.data.botplay);
+                modOptions.set('botplay', value);
+            }, modOptions.get('botplay'));
 			
 			/* can't seem to get this to work properly
 			modifiers.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(value:Bool) {
-                save.data.minimal = value;
-            }, save.data.minimal);
+                modOptions.set('minimal', value);
+            }, modOptions.get('minimal'));
 			*/
 			
 			// NUMERICALS
@@ -98,32 +106,32 @@ class GameplayModifiers extends Module {
 			modifiers.preferenceDesc.push('Modifiers that affect numerical values in a song');
 			
 			modifiers.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(value:Float) {
-				save.data.scrollSpeed = value;
-			}, null, save.data.scrollSpeed, 0, 10, 0.05, 2);
+				modOptions.set('scrollSpeed', value);
+			}, null, modOptions.get('scrollSpeed'), 0, 10, 0.05, 2);
 			
-			modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels, currently broken as of 0.6.4', function(value:Float) {
-				save.data.playbackRate = value;
-			}, null, save.data.playbackRate, 0.05, 10, 0.05, 2);
+			modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(value:Float) {
+				modOptions.set('playbackRate', value);
+			}, null, modOptions.get('playbackRate'), 0.05, 10, 0.05, 2);
 			
 			// JUDGEMENTALS
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Judgement Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
 			modifiers.preferenceDesc.push('Modifiers that affect gameplay based on your note judgements');
 			
 			modifiers.createPrefItemCheckbox("Restart instead of Kill", "All Instakill modifers restart the song instead of killing you", function(value) {
-                save.data.restartModifiers = value;
-            }, save.data.restartModifiers);
+                modOptions.set('restartModifiers', value);
+            }, modOptions.get('restartModifiers'));
 			
 			modifiers.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(value:Bool) {
-                save.data.killOnMiss = value;
-            }, save.data.killOnMiss);
+                modOptions.set('killOnMiss', value);
+            }, modOptions.get('killOnMiss'));
 			
 			modifiers.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(value:Bool) {
-                save.data.killOnGhostTap = value;
-            }, save.data.killOnGhostTap);
+                modOptions.set('killOnGhostTap', value);
+            }, modOptions.get('killOnGhostTap'));
 			
 			modifiers.createPrefItemCheckbox("Perfect Mode", "Getting anything other than 'Sick!!' as your judgement kills you", function(value:Bool) {
-                save.data.perfectMode = value;
-            }, save.data.perfectMode);
+               modOptions.set('perfectMode', value);
+            }, modOptions.get('perfectMode'));
 			
 			// DEBUG
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Debug /', 'bold', function() { trace('HAWK TUAH'); });
@@ -135,29 +143,29 @@ class GameplayModifiers extends Module {
 				else
 					FlxG.stage.removeChild(debugTxt);
 				
-				save.data.debug = value;
-            }, save.data.debug);
+				modOptions.set('debug', value);
+            }, modOptions.get('debug'));
 			
 			save.flush();
 		}
 		
-		if (Preferences.debugDisplay && save.data.debug && debugTxt != null) debugTxt.text = 'Botplay: ' + save.data.botplay + '\nMinimal: ' + save.data.minimal + '\n\nScroll Speed: ' + save.data.scrollSpeed + '\nPlayback Rate: ' + save.data.playbackRate + '\n\nRestart Modifiers: ' + save.data.restartModifiers + '\nKill on Miss: ' + save.data.killOnMiss + '\nKill on Ghost Tap: ' + save.data.killOnGhostTap + '\nPerfect Mode: ' + save.data.perfectMode;
+		if (Preferences.debugDisplay && modOptions.get('debug') && debugTxt != null) debugTxt.text = 'Botplay: ' + modOptions.get('botplay') + '\nMinimal: ' + modOptions.get('minimal') + '\n\nScroll Speed: ' + modOptions.get('scrollSpeed') + '\nPlayback Rate: ' + modOptions.get('playbackRate') + '\n\nRestart Modifiers: ' + modOptions.get('restartModifiers') + '\nKill on Miss: ' + modOptions.get('killOnMiss') + '\nKill on Ghost Tap: ' + modOptions.get('killOnGhostTap') + '\nPerfect Mode: ' + modOptions.get('perfectMode');
 	}
 	
 	function onCountdownStart(event) {
 		super.onCountdownStart(event);
-		PlayState.instance.isBotPlayMode = save.data.botplay;
-		// PlayState.instance.isMinimalMode = save.data.minimal;
-		PlayState.instance.playbackRate = save.data.playbackRate;
+		PlayState.instance.isBotPlayMode = modOptions.get('botplay');
+		// PlayState.instance.isMinimalMode = modOptions.get('minimal');
+		PlayState.instance.playbackRate = modOptions.get('playbackRate');
 		
-		PlayState.instance.playerStrumline.scrollSpeed = (save.data.scrollSpeed != 0 ? save.data.scrollSpeed : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
-		PlayState.instance.opponentStrumline.scrollSpeed = (save.data.scrollSpeed != 0 ? save.data.scrollSpeed : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
+		PlayState.instance.playerStrumline.scrollSpeed = (modOptions.get('scrollSpeed') != 0 ? modOptions.get('scrollSpeed') : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
+		PlayState.instance.opponentStrumline.scrollSpeed = (modOptions.get('scrollSpeed') != 0 ? modOptions.get('scrollSpeed') : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
 	}
 	
 	function onNoteHit(event:HitNoteScriptEvent) {
 		super.onNoteHit(event);
-		if (save.data.perfectMode && event.note.noteData.getMustHitNote() && event.judgement != "sick" && !PlayState.instance.isPracticeMode) {
-			if (save.data.restartModifiers)
+		if (modOptions.get('perfectMode') && event.note.noteData.getMustHitNote() && event.judgement != "sick" && !PlayState.instance.isPracticeMode) {
+			if (modOptions.get('restartModifiers'))
 				PlayState.instance.needsReset = true;
 			else
 				PlayState.instance.health = Constants.HEALTH_MIN - Constants.HEALTH_MIN;
@@ -166,8 +174,8 @@ class GameplayModifiers extends Module {
 	
 	function onNoteMiss(event:HitNoteScriptEvent) {
 		super.onNoteGhostMiss(event);
-		if ((save.data.perfectMode || save.data.killOnMiss) && !PlayState.instance.isPracticeMode) {
-			if (save.data.restartModifiers)
+		if ((modOptions.get('perfectMode') || modOptions.get('killOnMiss')) && !PlayState.instance.isPracticeMode) {
+			if (modOptions.get('restartModifiers'))
 				PlayState.instance.needsReset = true;
 			else
 				PlayState.instance.health = Constants.HEALTH_MIN - Constants.HEALTH_MIN;
@@ -176,8 +184,8 @@ class GameplayModifiers extends Module {
 	
 	function onNoteGhostMiss(event:HitNoteScriptEvent) {
 		super.onNoteGhostMiss(event);
-		if ((save.data.perfectMode || save.data.killOnGhostTap) && !PlayState.instance.isPracticeMode) {
-			if (save.data.restartModifiers)
+		if ((modOptions.get('perfectMode') || modOptions.get('killOnGhostTap')) && !PlayState.instance.isPracticeMode) {
+			if (modOptions.get('restartModifiers'))
 				PlayState.instance.needsReset = true;
 			else
 				PlayState.instance.health = Constants.HEALTH_MIN - Constants.HEALTH_MIN;
