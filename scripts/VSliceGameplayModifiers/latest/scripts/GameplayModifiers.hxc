@@ -24,32 +24,37 @@ class GameplayModifiers extends Module {
 	var save:Save;
 	var modOptions:Map;
 	var debugTxt:TextField;
+	
+	static var saveVersion:Float = 1.0;
 		
 	public function new() {
 		super('gameplay-modifiers');
 		save = Save.instance;
 		
-		if (save.modOptions.get('GameplayModifiers') == null) {
+		if (save.modOptions.get('GameplayModifiers') == null || save.modOptions.get('GameplayModifiers').get('version') != saveVersion) {
 			var default:Map<String, Dynamic> = [
 				'botplay' => false,
 				'minimal' => false,
 				
-				'scrollSpeed' => 0.0,
-				'playbackRate' => 1.0,
+				'scrollSpeed' => 0,
+				'playbackRate' => 100,
 				
 				'restartModifiers' => false,
 				'killOnMiss' => false,
 				'killOnGhostTap' => false,
 				'perfectMode' => false,
 				
-				'debug' => false
+				'debug' => false,
+				'version' => modifierVersion
 			];
 			
+			trace('MODIFIER SETTINGS RESET');
 			save.modOptions.set('GameplayModifiers', default);
 			save.flush();
 		}
 		
 		modOptions = save.modOptions.get('GameplayModifiers');
+		trace(modOptions);
 		
 		debugTxt = new TextField();
 		debugTxt.x = 10;
@@ -91,13 +96,13 @@ class GameplayModifiers extends Module {
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ State Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
 			modifiers.preferenceDesc.push('Modifiers that affect PlayState itself');
 			
-			modifiers.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(value:Bool) {
-                modOptions.set('botplay', value);
+			modifiers.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(v:Bool) {
+                modOptions.set('botplay', v);
             }, modOptions.get('botplay'));
 			
 			/* can't seem to get this to work properly
-			modifiers.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(value:Bool) {
-                modOptions.set('minimal', value);
+			modifiers.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(v:Bool) {
+                modOptions.set('minimal', v);
             }, modOptions.get('minimal'));
 			*/
 			
@@ -105,45 +110,45 @@ class GameplayModifiers extends Module {
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Numerical Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
 			modifiers.preferenceDesc.push('Modifiers that affect numerical values in a song');
 			
-			modifiers.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(value:Float) {
-				modOptions.set('scrollSpeed', value);
-			}, null, modOptions.get('scrollSpeed'), 0, 10, 0.05, 2);
+			modifiers.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(v:Float) {
+				modOptions.set('scrollSpeed', Std.int(v));
+			}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('scrollSpeed'), 5, 1000, 5, 0);
 			
-			modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(value:Float) {
-				modOptions.set('playbackRate', value);
-			}, null, modOptions.get('playbackRate'), 0.05, 10, 0.05, 2);
+			modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(v:Float) {
+				modOptions.set('playbackRate', Std.int(v));
+			}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('playbackRate'), 5, 1000, 5, 0);
 			
 			// JUDGEMENTALS
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Judgement Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
 			modifiers.preferenceDesc.push('Modifiers that affect gameplay based on your note judgements');
 			
-			modifiers.createPrefItemCheckbox("Restart instead of Kill", "All Instakill modifers restart the song instead of killing you", function(value) {
-                modOptions.set('restartModifiers', value);
+			modifiers.createPrefItemCheckbox("Restart instead of Kill", "All Instakill modifers restart the song instead of killing you", function(v:Bool) {
+                modOptions.set('restartModifiers', v);
             }, modOptions.get('restartModifiers'));
 			
-			modifiers.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(value:Bool) {
-                modOptions.set('killOnMiss', value);
+			modifiers.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(v:Bool) {
+                modOptions.set('killOnMiss', v);
             }, modOptions.get('killOnMiss'));
 			
-			modifiers.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(value:Bool) {
-                modOptions.set('killOnGhostTap', value);
+			modifiers.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(v:Bool) {
+                modOptions.set('killOnGhostTap', v);
             }, modOptions.get('killOnGhostTap'));
 			
-			modifiers.createPrefItemCheckbox("Perfect Mode", "Getting anything other than 'Sick!!' as your judgement kills you", function(value:Bool) {
-               modOptions.set('perfectMode', value);
+			modifiers.createPrefItemCheckbox("Perfect Mode", "Getting anything other than 'Sick!!' as your judgement kills you", function(v:Bool) {
+               modOptions.set('perfectMode', v);
             }, modOptions.get('perfectMode'));
 			
 			// DEBUG
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Debug /', 'bold', function() { trace('HAWK TUAH'); });
 			modifiers.preferenceDesc.push('debug lol');
 			
-			modifiers.createPrefItemCheckbox("Debug Info", "Toggles debug information regarding the modifiers, Debug Display in Preferences needs to be enabled as well", function(value:Bool) {
-				if (Preferences.debugDisplay && value)
+			modifiers.createPrefItemCheckbox("Debug Info", "Toggles debug information regarding the modifiers, Debug Display in Preferences needs to be enabled as well", function(v:Bool) {
+				if (Preferences.debugDisplay && v)
 					FlxG.stage.addChild(debugTxt);
 				else
 					FlxG.stage.removeChild(debugTxt);
 				
-				modOptions.set('debug', value);
+				modOptions.set('debug', v);
             }, modOptions.get('debug'));
 			
 			save.flush();
@@ -156,10 +161,10 @@ class GameplayModifiers extends Module {
 		super.onCountdownStart(event);
 		PlayState.instance.isBotPlayMode = modOptions.get('botplay');
 		// PlayState.instance.isMinimalMode = modOptions.get('minimal');
-		PlayState.instance.playbackRate = modOptions.get('playbackRate');
+		PlayState.instance.playbackRate = modOptions.get('playbackRate') * 0.01;
 		
-		PlayState.instance.playerStrumline.scrollSpeed = (modOptions.get('scrollSpeed') != 0 ? modOptions.get('scrollSpeed') : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
-		PlayState.instance.opponentStrumline.scrollSpeed = (modOptions.get('scrollSpeed') != 0 ? modOptions.get('scrollSpeed') : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
+		PlayState.instance.playerStrumline.scrollSpeed = (modOptions.get('scrollSpeed') != 0 ? (modOptions.get('scrollSpeed') * 0.01) : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
+		PlayState.instance.opponentStrumline.scrollSpeed = (modOptions.get('scrollSpeed') != 0 ? (modOptions.get('scrollSpeed') * 0.01) : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
 	}
 	
 	function onNoteHit(event:HitNoteScriptEvent) {
