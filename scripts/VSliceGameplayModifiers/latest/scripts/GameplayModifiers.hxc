@@ -45,7 +45,7 @@ class GameplayModifiers extends Module {
 				'perfectMode' => false,
 				
 				'debug' => false,
-				'version' => modifierVersion
+				'version' => saveVersion
 			];
 			
 			trace('MODIFIER SETTINGS RESET');
