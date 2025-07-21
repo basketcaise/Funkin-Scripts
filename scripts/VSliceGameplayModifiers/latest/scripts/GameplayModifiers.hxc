@@ -5,8 +5,10 @@ import flixel.FlxG;
 import funkin.save.Save;
 import flixel.text.FlxText;
 
+#if !mobile
 import openfl.text.TextField;
 import openfl.text.TextFormat;
+#end
 
 import funkin.Conductor;
 import funkin.Preferences;
@@ -56,6 +58,7 @@ class GameplayModifiers extends Module {
 		modOptions = save.modOptions.get('GameplayModifiers');
 		trace(modOptions);
 		
+		#if !mobile
 		debugTxt = new TextField();
 		debugTxt.x = 10;
 		debugTxt.y = 33;
@@ -66,12 +69,15 @@ class GameplayModifiers extends Module {
 		
 		debugTxt.selectable = false;
 		debugTxt.mouseEnabled = false;
+		#end
 	}
 	
+	#if !mobile
 	function onCreate(event) {
 		super.onCreate(event);
 		if (Preferences.debugDisplay && modOptions.get('debug')) FlxG.stage.addChild(debugTxt);
 	}
+	#end
 	
 	function onStateChangeEnd(event) {
 		if (Std.isOfType(event.targetState, OptionsState)) {
@@ -90,7 +96,7 @@ class GameplayModifiers extends Module {
 			
 			modifiers.onExit.add(function() state.optionsCodex.switchPage('options'));
 			options.createItem('MODIFIERS', function() options.codex.switchPage('Modifiers'));
-			options.items.members[options.items.length - 1].y = 0;
+			#if !mobile options.items.members[options.items.length - 1].y = 0; #end
 			
 			// STATES
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ State Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
@@ -112,7 +118,7 @@ class GameplayModifiers extends Module {
 			
 			modifiers.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(v:Float) {
 				modOptions.set('scrollSpeed', Std.int(v));
-			}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('scrollSpeed'), 5, 1000, 5, 0);
+			}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('scrollSpeed'), 0, 1000, 5, 0);
 			
 			modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(v:Float) {
 				modOptions.set('playbackRate', Std.int(v));
@@ -138,6 +144,7 @@ class GameplayModifiers extends Module {
                modOptions.set('perfectMode', v);
             }, modOptions.get('perfectMode'));
 			
+			#if !mobile
 			// DEBUG
 			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Debug /', 'bold', function() { trace('HAWK TUAH'); });
 			modifiers.preferenceDesc.push('debug lol');
@@ -150,11 +157,12 @@ class GameplayModifiers extends Module {
 				
 				modOptions.set('debug', v);
             }, modOptions.get('debug'));
+			#end
 			
 			save.flush();
 		}
 		
-		if (Preferences.debugDisplay && modOptions.get('debug') && debugTxt != null) debugTxt.text = 'Botplay: ' + modOptions.get('botplay') + '\nMinimal: ' + modOptions.get('minimal') + '\n\nScroll Speed: ' + modOptions.get('scrollSpeed') + '\nPlayback Rate: ' + modOptions.get('playbackRate') + '\n\nRestart Modifiers: ' + modOptions.get('restartModifiers') + '\nKill on Miss: ' + modOptions.get('killOnMiss') + '\nKill on Ghost Tap: ' + modOptions.get('killOnGhostTap') + '\nPerfect Mode: ' + modOptions.get('perfectMode');
+		#if !mobile if (Preferences.debugDisplay && modOptions.get('debug') && debugTxt != null) debugTxt.text = 'Botplay: ' + modOptions.get('botplay') + '\nMinimal: ' + modOptions.get('minimal') + '\n\nScroll Speed: ' + modOptions.get('scrollSpeed') + '\nPlayback Rate: ' + modOptions.get('playbackRate') + '\n\nRestart Modifiers: ' + modOptions.get('restartModifiers') + '\nKill on Miss: ' + modOptions.get('killOnMiss') + '\nKill on Ghost Tap: ' + modOptions.get('killOnGhostTap') + '\nPerfect Mode: ' + modOptions.get('perfectMode'); #end
 	}
 	
 	function onCountdownStart(event) {
