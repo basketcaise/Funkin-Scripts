@@ -3,50 +3,64 @@ import Math;
 import StringTools;
 
 import flixel.FlxG;
-import flixel.FlxSprite;
+import funkin.graphics.FunkinSprite;
 import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
 
-import flixel.util.FlxSave;
+import funkin.save.Save;
 import flixel.util.FlxTimer;
 
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 
 import flixel.math.FlxMath;
-import flixel.math.FlxBasePoint;
+import flixel.math.FlxPoint;
 import flixel.graphics.frames.FlxTileFrames;
 
 import funkin.modding.module.Module;
 import funkin.modding.events.ScriptEvent;
 
-import funkin.ui.transition.StickerSubState;
+import funkin.ui.transition.stickers.StickerSubState;
 import funkin.play.PlayState;
+
+import funkin.util.TouchUtil;
+import funkin.util.PlatformUtil;
+import funkin.util.HostPlatform;
 
 import funkin.Conductor;
 import funkin.Paths;
 
 class FruityDance extends Module {
-	var fruitySave:FlxSave;
+	var fruitySave:Save;
+	var fruityOptions:Map;
+	var isMobile:Bool;
 	
 	public function new() {
 		super('Fruity Dance (V-Slice)');
-		fruitySave = new FlxSave();
-		fruitySave.bind('FruityDance-VSlice', 'Basketcaise');
+		fruitySave = Save.instance;
+		isMobile = (PlatformUtil.detectHostPlatform() == HostPlatform.ANDROID || PlatformUtil.detectHostPlatform() == HostPlatform.IOS) ? true : false;
 		
-		if (fruitySave.data.curDance == null) {
-			fruitySave.data.dancerX = 0;
-			fruitySave.data.dancerY = 0;
+		if (fruitySave.modOptions.get('FruityDance') == null) {
+			var fruityDefaultSettings:Map<String, Dynamic> = [
+				'dancerX' => 0,
+				'dancerY' => 0,
+				'curDance' => 0,
+				'freestyle' => false
+			];
 			
-			fruitySave.data.curDance = 0;
-			fruitySave.data.freestyle = false;
-			
+			fruitySave.modOptions.set('FruityDance', fruityDefaultSettings);
 			fruitySave.flush();
 		}
+		
+		fruityOptions = fruitySave.modOptions.get('FruityDance');
 	}
 	
-	var fruityDancer:FlxSprite;
+	var fruityButton:FunkinSprite;
+	var fruityDancer:FunkinSprite;
 	var fruityDances:Array<String> = ['Waiting', 'Stepping', 'Jumping', 'Zombie', 'Waving', 'Hula', 'Windmill', 'Zitabata', 'Dervish'];
+	
 	var holdingDancer:Bool = false;
+	var freestyleDelay:Bool = false;
 	
 	var fruityTimer:FlxTimer;
 	var fruityText:FlxText;
@@ -58,58 +72,65 @@ class FruityDance extends Module {
 		super.onSongLoaded(event);
 		var state = PlayState.instance;
 		
-		fruityDancer = new FlxSprite(fruitySave.data.dancerX, fruitySave.data.dancerY);
-		var fruityGraphic = FlxG.bitmap.add(Paths.image('fl-chan'), false);
-		fruityDancer.frames = FlxTileFrames.fromGraphic(fruityGraphic, FlxBasePoint.get(220, 256));
+		fruityDancer = FunkinSprite.create(fruityOptions.get('dancerX'), fruityOptions.get('dancerY'), 'fl-chan');
+		fruityDancer.frames = FlxTileFrames.fromGraphic(fruityDancer.graphic, FlxPoint.get(220, 256));
 		fruityDancer.cameras = [state.camHUD];
 		state.add(fruityDancer);
 		
 		fruityTimer = new FlxTimer();
 		
-		fruityText = new FlxText(fruityDancer.getGraphicMidpoint().x - 640, fruityDancer.getGraphicMidpoint().y - 125, FlxG.width, 'Fruity Dance!');
+		fruityText = new FlxText(fruityDancer.getGraphicMidpoint().x - 640, fruityDancer.getGraphicMidpoint().y - 125, 1280, 'Fruity Dance!');
 		fruityText.setFormat(Paths.font('vcr.ttf'), 20, 0xFFFFFFFF, 'center', FlxTextBorderStyle.OUTLINE, 0xFF000000);
 		fruityText.cameras = [state.camHUD];
 		fruityText.borderSize = 1.25;
 		fruityText.alpha = 0;
 		state.add(fruityText);
 		
-		fruityDancer.animation.add('held', [0 + (8 * (fruityDances.length)), 1 + (8 * (fruityDances.length)), 2 + (8 * (fruityDances.length)), 3 + (8 * (fruityDances.length)), 4 + (8 * (fruityDances.length )), 5 + (8 * (fruityDances.length)), 6 + (8 * (fruityDances.length)), 7 + (8 * (fruityDances.length))], 8, true);
+		fruityDancer.animation.add('held', [0 + (8 * (fruityDances.length)), 1 + (8 * (fruityDances.length)), 2 + (8 * (fruityDances.length)), 3 + (8 * (fruityDances.length)), 4 + (8 * (fruityDances.length)), 5 + (8 * (fruityDances.length)), 6 + (8 * (fruityDances.length)), 7 + (8 * (fruityDances.length))], 8, true);
 		
 		for (i in 0...fruityDances.length) {
 			fruityDancer.animation.add(fruityDances[i] + 'Left', [0 + (8 * i), 1 + (8 * i), 2 + (8 * i), 3 + (8 * i)], 8, false);
 			fruityDancer.animation.add(fruityDances[i] + 'Right', [4 + (8 * i), 5 + (8 * i), 6 + (8 * i), 7 + (8 * i)], 8, false);
 		}
 		
-		FlxG.mouse.visible = true;
+		if (isMobile) {
+			fruityButton = FunkinSprite.create(0, 0, 'danceIcon');
+			fruityButton.setPosition((FlxG.width - fruityButton.width) - 200, 30);
+			fruityButton.cameras = [state.camControls];
+			state.add(fruityButton);
+		} else {
+			FlxG.mouse.visible = true;
+		}
+		
 		fruityStep = 0;
 	}
-
+	
 	function onUpdate(elapsed:Float) {
 		super.onUpdate(elapsed);
 		var state = PlayState.instance;
-		if (state == null) return;
+		if (state == null || state.isGamePaused || state.isInCutscene) return;
 		
 		if (fruityDancer != null) {
-			if (FlxG.mouse.overlaps(fruityDancer, state.camHUD) && FlxG.mouse.pressed && (FlxG.mouse.deltaScreenX != 0 || FlxG.mouse.deltaScreenY != 0)) {
+			if (isMobile ? (TouchUtil.overlaps(fruityDancer, state.camHUD) && TouchUtil.pressed && (TouchUtil.touch.deltaViewX != 0 || TouchUtil.touch.deltaViewY != 0)) : (FlxG.mouse.overlaps(fruityDancer, state.camHUD) && FlxG.mouse.pressed && (FlxG.mouse.deltaViewX != 0 || FlxG.mouse.deltaViewY != 0))) { // horrendous but works
 				holdingDancer = true;
 				fruityDancer.animation.play('held', false);
 				
-				fruityDancer.x += FlxG.mouse.deltaScreenX * FlxG.camera.zoom;
-				fruityDancer.y += FlxG.mouse.deltaScreenY * FlxG.camera.zoom;
+				fruityDancer.x += (isMobile ? TouchUtil.touch.deltaViewX : FlxG.mouse.deltaViewX) * FlxG.camera.zoom;
+				fruityDancer.y += (isMobile ? TouchUtil.touch.deltaViewY : FlxG.mouse.deltaViewY) * FlxG.camera.zoom;
 				
-				fruityText.x += FlxG.mouse.deltaScreenX * FlxG.camera.zoom;
-				fruityText.y += FlxG.mouse.deltaScreenY * FlxG.camera.zoom;
+				fruityText.x += (isMobile ? TouchUtil.touch.deltaViewX : FlxG.mouse.deltaViewX) * FlxG.camera.zoom;
+				fruityText.y += (isMobile ? TouchUtil.touch.deltaViewY : FlxG.mouse.deltaViewY) * FlxG.camera.zoom;
 			} else if (holdingDancer) {
 				holdingDancer = false;
 				
-				fruitySave.data.dancerX = fruityDancer.x;
-				fruitySave.data.dancerY = fruityDancer.y;
+				fruityOptions.set('dancerX', fruityDancer.x);
+				fruityOptions.set('dancerY', fruityDancer.y);
 				
 				fruitySave.flush();
 			}
 			
-			if (FlxG.keys.justPressed.SPACE && !fruitySave.data.freestyle) {
-				fruitySave.data.curDance = FlxMath.wrap(fruitySave.data.curDance + 1, 0, fruityDances.length - 1);
+			if ((isMobile ? TouchUtil.pressAction(fruityButton) : FlxG.keys.justPressed.SPACE) && !fruityOptions.get('freestyle')) {
+				fruityOptions.set('curDance', FlxMath.wrap(fruityOptions.get('curDance') + 1, 0, fruityDances.length - 1));
 				fruitySave.flush();
 				
 				fruityTimer.cancel();
@@ -117,7 +138,7 @@ class FruityDance extends Module {
 				FlxTween.completeTweensOf(fruityText.offset);
 				FlxTween.globalManager.update(0);
 				
-				fruityText.text = fruityDances[fruitySave.data.curDance];
+				fruityText.text = fruityDances[fruityOptions.get('curDance')];
 				fruityText.alpha = 1;
 				
 				fruityTimer.start(1, () -> {
@@ -126,8 +147,9 @@ class FruityDance extends Module {
 				});
 			}
 			
-			if (FlxG.keys.justPressed.GRAVEACCENT) {
-				fruitySave.data.freestyle = !fruitySave.data.freestyle;
+			if (isMobile ? (!freestyleDelay && TouchUtil.overlaps(fruityButton, state.camControls) && TouchUtil.pressed && TouchUtil.touch.ticksDeltaSincePress >= 500) : FlxG.keys.justPressed.GRAVEACCENT) {
+				if (isMobile) freestyleDelay = true;
+				fruityOptions.set('freestyle', !fruityOptions.get('freestyle'));
 				fruitySave.flush();
 				
 				fruityTimer.cancel();
@@ -135,10 +157,10 @@ class FruityDance extends Module {
 				FlxTween.completeTweensOf(fruityText.offset);
 				FlxTween.globalManager.update(0);
 				
-				fruityText.text = fruitySave.data.freestyle ? 'Freestyle!' : fruityDances[fruitySave.data.curDance];
+				fruityText.text = fruityOptions.get('freestyle') ? 'Freestyle!' : fruityDances[fruityOptions.get('curDance')];
 				fruityText.alpha = 1;
 				
-				if (!fruitySave.data.freestyle) {
+				if (!fruityOptions.get('freestyle')) {
 					fruityText.borderColor = 0xFF000000;
 					fruityText.angle = 0;
 				}
@@ -146,10 +168,11 @@ class FruityDance extends Module {
 				fruityTimer.start(1, () -> {
 					FlxTween.tween(fruityText, {alpha: 0}, 1, {onComplete: () -> { fruityText.text = 'Fruity Dance!'; } });
 					FlxTween.tween(fruityText.offset, {y: 25}, 1, {onComplete: () -> { fruityText.offset.y = 0; } });
+					if (isMobile) freestyleDelay = false;
 				});
 			}
 			
-			if (fruitySave.data.freestyle && fruityText.text == 'Freestyle!') {
+			if (fruityOptions.get('freestyle') && fruityText.text == 'Freestyle!') {
 				rgbColor[0] = FlxMath.fastSin(Conductor.instance.songPosition * 0.0075) * 127 + 128;
 				rgbColor[1] = FlxMath.fastSin((Conductor.instance.songPosition * 0.0075) + 2 * Math.PI / 3) * 127 + 128;
 				rgbColor[2] = FlxMath.fastSin((Conductor.instance.songPosition * 0.0075) + 4 * Math.PI / 3) * 127 + 128;
@@ -159,6 +182,7 @@ class FruityDance extends Module {
 			}
 			
 			if (state.needsReset) {
+				if (isMobile) fruityButton.destroy();
 				fruityDancer.destroy();
 				fruityText.destroy();
 			}
@@ -171,12 +195,17 @@ class FruityDance extends Module {
 		
 		if (!holdingDancer) {
 			if (fruityStep % 2 == 0)
-				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Left', false);
+				fruityDancer.animation.play((fruityOptions.get('freestyle') ? fruityDances[randDance] : fruityDances[fruityOptions.get('curDance')]) + 'Left', false);
 			else if (fruityStep % 2 == 1)
-				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Right', false);
+				fruityDancer.animation.play((fruityOptions.get('freestyle') ? fruityDances[randDance] : fruityDances[fruityOptions.get('curDance')]) + 'Right', false);
 		}
 		
 		fruityStep += 1;
+	}
+	
+	function onSongStart(event) {
+		super.onSongStart(event);
+		fruityDancer.animation.timeScale = PlayState.instance.playbackRate;
 	}
 
 	function onBeatHit(event:SongTimeScriptEvent) {
@@ -188,23 +217,36 @@ class FruityDance extends Module {
 		
 		if (!holdingDancer) {
 			if (event.beat % 2 == 0)
-				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Left', false);
+				fruityDancer.animation.play((fruityOptions.get('freestyle') ? fruityDances[randDance] : fruityDances[fruityOptions.get('curDance')]) + 'Left', false);
 			else if (event.beat % 2 == 1)
-				fruityDancer.animation.play((fruitySave.data.freestyle ? fruityDances[randDance] : fruityDances[fruitySave.data.curDance]) + 'Right', false);
+				fruityDancer.animation.play((fruityOptions.get('freestyle') ? fruityDances[randDance] : fruityDances[fruityOptions.get('curDance')]) + 'Right', false);
+		}
+	}
+	
+	function onSongEnd(event) {
+		super.onSongEnd(event);
+		if (!isMobile) FlxG.mouse.visible = false;
+	}
+	
+	function onPause(event) {
+		super.onPause(event);
+		if (isMobile) {
+			FlxTween.cancelTweensOf(fruityButton);
+			FlxTween.tween(fruityButton, {alpha: 0}, 0.6, {ease: FlxEase.quartOut});
+		}
+	}
+	
+	function onResume(event) {
+		super.onResume(event);
+		if (isMobile) {
+			FlxTween.cancelTweensOf(fruityButton);
+			FlxTween.tween(fruityButton, {alpha: 1}, 0.25, {ease: FlxEase.quartOut});
 		}
 	}
 	
 	function onSubStateOpenBegin(event:SubStateScriptEvent) {
 		super.onSubStateOpenBegin(event);
-		var state = PlayState.instance;
-		if (state == null) return;
-		
-		if (Std.isOfType(event.targetState, StickerSubState)) FlxG.mouse.visible = false;
-	}
-
-	function onSongEnd(event) {
-		super.onSongEnd(event);
-		FlxG.mouse.visible = false;
+		if (PlayState.instance != null && !isMobile && Std.isOfType(event.targetState, StickerSubState)) FlxG.mouse.visible = false;
 	}
 	
 	function rgbToHex(r, g, b) {
