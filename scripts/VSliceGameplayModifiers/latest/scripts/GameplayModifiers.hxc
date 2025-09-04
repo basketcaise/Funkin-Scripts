@@ -5,10 +5,8 @@ import flixel.FlxG;
 import funkin.save.Save;
 import flixel.text.FlxText;
 
-#if !mobile
 import openfl.text.TextField;
 import openfl.text.TextFormat;
-#end
 
 import funkin.Conductor;
 import funkin.Preferences;
@@ -19,19 +17,26 @@ import funkin.ui.options.PreferencesMenu;
 import funkin.modding.module.Module;
 import funkin.modding.events.ScriptEvent;
 
+import funkin.util.PlatformUtil;
+import funkin.util.HostPlatform;
+
 import funkin.util.Constants;
 import funkin.play.PlayState;
 
 class GameplayModifiers extends Module {
 	var save:Save;
-	var modOptions:Map;
+	var modOptions:Map<String, Dynamic>;
+	var noteJudge:Map<String, Int>;
 	var debugTxt:TextField;
 	
-	static var saveVersion:Float = 1.0;
+	var isMobile:Bool;
+	
+	static var saveVersion:Float = 1.1;
 		
 	public function new() {
 		super('gameplay-modifiers');
 		save = Save.instance;
+		isMobile = (PlatformUtil.detectHostPlatform() == HostPlatform.ANDROID || PlatformUtil.detectHostPlatform() == HostPlatform.IOS) ? true : false;
 		
 		if (save.modOptions.get('GameplayModifiers') == null || save.modOptions.get('GameplayModifiers').get('version') != saveVersion) {
 			var default:Map<String, Dynamic> = [
@@ -44,131 +49,208 @@ class GameplayModifiers extends Module {
 				'restartModifiers' => false,
 				'killOnMiss' => false,
 				'killOnGhostTap' => false,
-				'perfectMode' => false,
+				'bestJudgement' => 0,
 				
 				'debug' => false,
 				'version' => saveVersion
 			];
 			
-			trace('MODIFIER SETTINGS RESET');
 			save.modOptions.set('GameplayModifiers', default);
 			save.flush();
 		}
 		
 		modOptions = save.modOptions.get('GameplayModifiers');
-		trace(modOptions);
+		noteJudge = [
+			'sick' => 3,
+			'good' => 2,
+			'bad' => 1,
+			'shit' => 0
+		];
 		
-		#if !mobile
-		debugTxt = new TextField();
-		debugTxt.x = 10;
-		debugTxt.y = 33;
-		
-		debugTxt.width = FlxG.width;
-		debugTxt.height = FlxG.height;
-		debugTxt.defaultTextFormat = new TextFormat("_sans", 12, 0xFFFFFF, false, false, false, '', '', 'left');
-		
-		debugTxt.selectable = false;
-		debugTxt.mouseEnabled = false;
-		#end
+		if (!isMobile) {
+			debugTxt = new TextField();
+			debugTxt.x = 10;
+			debugTxt.y = 33;
+			
+			debugTxt.width = FlxG.width;
+			debugTxt.height = FlxG.height;
+			debugTxt.defaultTextFormat = new TextFormat("_sans", 12, 0xFFFFFF, false, false, false, '', '', 'left');
+			
+			debugTxt.selectable = false;
+			debugTxt.mouseEnabled = false;
+		}
 	}
 	
-	#if !mobile
 	function onCreate(event) {
 		super.onCreate(event);
-		if (Preferences.debugDisplay && modOptions.get('debug')) FlxG.stage.addChild(debugTxt);
+		if (!isMobile && Preferences.debugDisplay && modOptions.get('debug')) FlxG.stage.addChild(debugTxt);
 	}
-	#end
 	
 	function onStateChangeEnd(event) {
+		super.onStateChangeEnd(event);
 		if (Std.isOfType(event.targetState, OptionsState)) {
 			var state = event.targetState;
 			var options = state.optionsCodex.pages.get('options');
 			
-			// modifier menu itself
-			var modifiers:PreferencesMenu = state.optionsCodex.addPage('Modifiers', new PreferencesMenu());
-			
-			for (i in modifiers.items) i.destroy();
-			for (i in modifiers.preferenceItems) i.destroy();
-			
-			modifiers.items.clear();
-			modifiers.preferenceItems.clear();
-			modifiers.preferenceDesc = [];
-			
-			modifiers.onExit.add(function() state.optionsCodex.switchPage('options'));
-			options.createItem('MODIFIERS', function() options.codex.switchPage('Modifiers'));
-			#if !mobile options.items.members[options.items.length - 1].y = 0; #end
-			
-			// STATES
-			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ State Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
-			modifiers.preferenceDesc.push('Modifiers that affect PlayState itself');
-			
-			modifiers.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(v:Bool) {
-                modOptions.set('botplay', v);
-            }, modOptions.get('botplay'));
-			
-			/* can't seem to get this to work properly
-			modifiers.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(v:Bool) {
-                modOptions.set('minimal', v);
-            }, modOptions.get('minimal'));
-			*/
-			
-			// NUMERICALS
-			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Numerical Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
-			modifiers.preferenceDesc.push('Modifiers that affect numerical values in a song');
-			
-			modifiers.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(v:Float) {
-				modOptions.set('scrollSpeed', Std.int(v));
-			}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('scrollSpeed'), 0, 1000, 5, 0);
-			
-			modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(v:Float) {
-				modOptions.set('playbackRate', Std.int(v));
-			}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('playbackRate'), 5, 1000, 5, 0);
-			
-			// JUDGEMENTALS
-			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Judgement Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
-			modifiers.preferenceDesc.push('Modifiers that affect gameplay based on your note judgements');
-			
-			modifiers.createPrefItemCheckbox("Restart instead of Kill", "All Instakill modifers restart the song instead of killing you", function(v:Bool) {
-                modOptions.set('restartModifiers', v);
-            }, modOptions.get('restartModifiers'));
-			
-			modifiers.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(v:Bool) {
-                modOptions.set('killOnMiss', v);
-            }, modOptions.get('killOnMiss'));
-			
-			modifiers.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(v:Bool) {
-                modOptions.set('killOnGhostTap', v);
-            }, modOptions.get('killOnGhostTap'));
-			
-			modifiers.createPrefItemCheckbox("Perfect Mode", "Getting anything other than 'Sick!!' as your judgement kills you", function(v:Bool) {
-               modOptions.set('perfectMode', v);
-            }, modOptions.get('perfectMode'));
-			
-			#if !mobile
-			// DEBUG
-			modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Debug /', 'bold', function() { trace('HAWK TUAH'); });
-			modifiers.preferenceDesc.push('debug lol');
-			
-			modifiers.createPrefItemCheckbox("Debug Info", "Toggles debug information regarding the modifiers, Debug Display in Preferences needs to be enabled as well", function(v:Bool) {
-				if (Preferences.debugDisplay && v)
-					FlxG.stage.addChild(debugTxt);
-				else
-					FlxG.stage.removeChild(debugTxt);
+			if (isMobile) { // shitty way of doing it but idc
+				var preferences = state.optionsCodex.pages.get('preferences');
 				
-				modOptions.set('debug', v);
-            }, modOptions.get('debug'));
-			#end
+				// GAMEPLAY MODIFIER DIVIDER
+				preferences.items.createItem(0, (120 * preferences.items.length) + 30, '// GAMEPLAY MODIFIERS //', 'bold', function() { trace('HAWK TUAH'); });
+				preferences.preferenceDesc.push('');
+				
+				// STATES
+				preferences.items.createItem(0, (120 * preferences.items.length) + 30, '/ State Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+				preferences.preferenceDesc.push('Modifiers that affect PlayState itself');
+				
+				preferences.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(v:Bool) {
+					modOptions.set('botplay', v);
+				}, modOptions.get('botplay'));
+				
+				/* can't seem to get this to work properly
+				preferences.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(v:Bool) {
+					modOptions.set('minimal', v);
+				}, modOptions.get('minimal'));
+				*/
+				
+				// NUMERICALS
+				preferences.items.createItem(0, (120 * preferences.items.length) + 30, '/ Numerical Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+				preferences.preferenceDesc.push('Modifiers that affect numerical values in a song');
+				
+				preferences.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(v:Float) {
+					modOptions.set('scrollSpeed', Std.int(v));
+				}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('scrollSpeed'), 0, 1000, 5, 0);
+				
+				preferences.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(v:Float) {
+					modOptions.set('playbackRate', Std.int(v));
+				}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('playbackRate'), 5, 1000, 5, 0);
+				
+				// JUDGEMENTALS
+				preferences.items.createItem(0, (120 * preferences.items.length) + 30, '/ Judgement Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+				preferences.preferenceDesc.push('Modifiers that affect gameplay based on your note judgements');
+				
+				preferences.createPrefItemCheckbox("Killstart", "All Instakill modifers restart the song instead of killing you", function(v:Bool) {
+					modOptions.set('restartModifiers', v);
+				}, modOptions.get('restartModifiers'));
+				
+				preferences.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(v:Bool) {
+					modOptions.set('killOnMiss', v);
+				}, modOptions.get('killOnMiss'));
+				
+				preferences.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(v:Bool) {
+					modOptions.set('killOnGhostTap', v);
+				}, modOptions.get('killOnGhostTap'));
+				
+				preferences.createPrefItemEnum("Best Judgement", "Getting anything lower than the chosen judgement kills you", [
+					'Sick!!' => 3,
+					'Good' => 2,
+					'Bad' => 1,
+					'Disabled' => 0
+				], function(k:String, v:String) {
+				   modOptions.set('bestJudgement', v);
+				}, switch(modOptions.get('bestJudgement')) {
+					case 3: 'Sick!!';
+					case 2: 'Good';
+					case 1: 'Bad';
+					case 0: 'Disabled';
+				});
+				
+				// GAMEPLAY MODIFIER DIVIDER
+				preferences.items.createItem(0, (120 * preferences.items.length) + 30, '// GAMEPLAY MODIFIERS //', 'bold', function() { trace('HAWK TUAH'); });
+				preferences.preferenceDesc.push('');
+			} else {
+				// modifier menu itself
+				var modifiers:PreferencesMenu = state.optionsCodex.addPage('Modifiers', new PreferencesMenu());
+				
+				for (i in modifiers.items) i.destroy();
+				for (i in modifiers.preferenceItems) i.destroy();
+				
+				modifiers.items.clear();
+				modifiers.preferenceItems.clear();
+				modifiers.preferenceDesc = [];
+				
+				modifiers.onExit.add(function() state.optionsCodex.switchPage('options'));
+				options.createItem('MODIFIERS', function() options.codex.switchPage('Modifiers'));
+				options.items.members[options.items.length - 1].y = 0;
+				
+				// STATES
+				modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ State Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+				modifiers.preferenceDesc.push('Modifiers that affect PlayState itself');
+				
+				modifiers.createPrefItemCheckbox("Bot Play Mode", "Songs start with Bot Play Mode enabled", function(v:Bool) {
+					modOptions.set('botplay', v);
+				}, modOptions.get('botplay'));
+				
+				/* can't seem to get this to work properly
+				modifiers.createPrefItemCheckbox("Minimal Mode", "Songs start with Minimal Mode enabled", function(v:Bool) {
+					modOptions.set('minimal', v);
+				}, modOptions.get('minimal'));
+				*/
+				
+				// NUMERICALS
+				modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Numerical Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+				modifiers.preferenceDesc.push('Modifiers that affect numerical values in a song');
+				
+				modifiers.createPrefItemNumber('Scroll Speed', 'Sets a scroll speed to be used across all levels, 0 sets it to chart default', function(v:Float) {
+					modOptions.set('scrollSpeed', Std.int(v));
+				}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('scrollSpeed'), 0, 1000, 5, 0);
+				
+				modifiers.createPrefItemNumber('Playback Rate', 'Sets a playback rate to be used across all levels', function(v:Float) {
+					modOptions.set('playbackRate', Std.int(v));
+				}, function(v:Float) { return Std.string(v * 0.01); }, modOptions.get('playbackRate'), 5, 1000, 5, 0);
+				
+				// JUDGEMENTALS
+				modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Judgement Modifiers /', 'bold', function() { trace('HAWK TUAH'); });
+				modifiers.preferenceDesc.push('Modifiers that affect gameplay based on your note judgements');
+				
+				modifiers.createPrefItemCheckbox("Killstart", "All Instakill modifers restart the song instead of killing you", function(v:Bool) {
+					modOptions.set('restartModifiers', v);
+				}, modOptions.get('restartModifiers'));
+				
+				modifiers.createPrefItemCheckbox("Instakill on Miss", "Missing a note kills you", function(v:Bool) {
+					modOptions.set('killOnMiss', v);
+				}, modOptions.get('killOnMiss'));
+				
+				modifiers.createPrefItemCheckbox("Instakill on Ghost Tap", "Pressing the strums while no note is present kills you", function(v:Bool) {
+					modOptions.set('killOnGhostTap', v);
+				}, modOptions.get('killOnGhostTap'));
+				
+				modifiers.createPrefItemEnum("Best Judgement", "Getting anything lower than the chosen judgement kills you", [
+					'Sick!!' => 3,
+					'Good' => 2,
+					'Bad' => 1,
+					'Disabled' => 0
+				], function(k:String, v:String) {
+				   modOptions.set('bestJudgement', v);
+				}, switch(modOptions.get('bestJudgement')) {
+					case 3: 'Sick!!';
+					case 2: 'Good';
+					case 1: 'Bad';
+					case 0: 'Disabled';
+				});
+				
+				// DEBUG
+				modifiers.items.createItem(0, (120 * modifiers.items.length) + 30, '/ Debug /', 'bold', function() { trace('HAWK TUAH'); });
+				modifiers.preferenceDesc.push('debug lol');
+				
+				modifiers.createPrefItemCheckbox("Debug Info", "Toggles debug information regarding the modifiers, Debug Display in Preferences needs to be enabled as well", function(v:Bool) {
+					modOptions.set('debug', v);
+					if (Preferences.debugDisplay && v)
+						FlxG.stage.addChild(debugTxt);
+					else
+						FlxG.stage.removeChild(debugTxt);
+				}, modOptions.get('debug'));
+			}
 			
 			save.flush();
 		}
 		
-		#if !mobile if (Preferences.debugDisplay && modOptions.get('debug') && debugTxt != null) debugTxt.text = 'Botplay: ' + modOptions.get('botplay') + '\nMinimal: ' + modOptions.get('minimal') + '\n\nScroll Speed: ' + modOptions.get('scrollSpeed') + '\nPlayback Rate: ' + modOptions.get('playbackRate') + '\n\nRestart Modifiers: ' + modOptions.get('restartModifiers') + '\nKill on Miss: ' + modOptions.get('killOnMiss') + '\nKill on Ghost Tap: ' + modOptions.get('killOnGhostTap') + '\nPerfect Mode: ' + modOptions.get('perfectMode'); #end
+		if (Preferences.debugDisplay && modOptions.get('debug') && debugTxt != null) debugTxt.text = 'Botplay: ' + modOptions.get('botplay') + '\nMinimal: ' + modOptions.get('minimal') + '\n\nScroll Speed: ' + modOptions.get('scrollSpeed') + '\nPlayback Rate: ' + modOptions.get('playbackRate') + '\n\nRestart Modifiers: ' + modOptions.get('restartModifiers') + '\nKill on Miss: ' + modOptions.get('killOnMiss') + '\nKill on Ghost Tap: ' + modOptions.get('killOnGhostTap') + '\nPerfect Mode: ' + modOptions.get('perfectMode');
 	}
 	
 	function onCountdownStart(event) {
 		super.onCountdownStart(event);
 		PlayState.instance.isBotPlayMode = modOptions.get('botplay');
-		// PlayState.instance.isMinimalMode = modOptions.get('minimal');
 		PlayState.instance.playbackRate = modOptions.get('playbackRate') * 0.01;
 		
 		PlayState.instance.playerStrumline.scrollSpeed = (modOptions.get('scrollSpeed') != 0 ? (modOptions.get('scrollSpeed') * 0.01) : PlayState.instance.currentChart.scrollSpeed) / PlayState.instance.playbackRate;
@@ -177,7 +259,7 @@ class GameplayModifiers extends Module {
 	
 	function onNoteHit(event:HitNoteScriptEvent) {
 		super.onNoteHit(event);
-		if (modOptions.get('perfectMode') && event.note.noteData.getMustHitNote() && event.judgement != "sick" && !PlayState.instance.isPracticeMode) {
+		if (event.note.noteData.getMustHitNote() && noteJudge.get(event.judgement) < modOptions.get('bestJudgement') && !PlayState.instance.isPracticeMode) {
 			if (modOptions.get('restartModifiers'))
 				PlayState.instance.needsReset = true;
 			else
@@ -186,8 +268,8 @@ class GameplayModifiers extends Module {
 	}
 	
 	function onNoteMiss(event:HitNoteScriptEvent) {
-		super.onNoteGhostMiss(event);
-		if ((modOptions.get('perfectMode') || modOptions.get('killOnMiss')) && !PlayState.instance.isPracticeMode) {
+		super.onNoteMiss(event);
+		if (modOptions.get('killOnMiss') && !PlayState.instance.isPracticeMode) {
 			if (modOptions.get('restartModifiers'))
 				PlayState.instance.needsReset = true;
 			else
@@ -197,7 +279,7 @@ class GameplayModifiers extends Module {
 	
 	function onNoteGhostMiss(event:HitNoteScriptEvent) {
 		super.onNoteGhostMiss(event);
-		if ((modOptions.get('perfectMode') || modOptions.get('killOnGhostTap')) && !PlayState.instance.isPracticeMode) {
+		if (modOptions.get('killOnGhostTap') && !PlayState.instance.isPracticeMode) {
 			if (modOptions.get('restartModifiers'))
 				PlayState.instance.needsReset = true;
 			else
